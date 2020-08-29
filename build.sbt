@@ -6,15 +6,17 @@ scalaVersion := "2.13.1"
 crossScalaVersions := Seq(scalaVersion.value, "2.12.10")
 
 val PlayVersion = "2.7.3"
-val SwaggerVersion = "1.5.24"
 val Specs2Version = "4.6.0"
 
 libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play" % PlayVersion,
   "com.typesafe.play" %% "routes-compiler" % PlayVersion,
-  "io.swagger" % "swagger-core" % SwaggerVersion,
-  "io.swagger" %% "swagger-scala-module" % "1.0.6",
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.9",
+
+  "io.swagger.core.v3" % "swagger-integration" % "2.1.2",
+  // Use alternative swagger-scala-module which depends on a recent swagger-core + Jackson + scala versions
+  //"io.swagger" %% "swagger-scala-module" % "1.0.6",
+  "com.github.swagger-akka-http" %% "swagger-scala-module" % "2.1.2",
+
   "org.scala-lang.modules" %% "scala-collection-compat" % "2.1.2",
   "org.slf4j" % "slf4j-api" % "1.7.21",
 

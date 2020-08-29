@@ -22,6 +22,8 @@ import io.swagger.config.FilterFactory
 import io.swagger.config.Scanner
 import io.swagger.config.ScannerFactory
 import io.swagger.core.filter.SwaggerSpecFilter
+import io.swagger.v3.core.filter.OpenAPISpecFilter
+import io.swagger.v3.oas.integration.api.OpenApiScanner
 import javax.inject.Inject
 import play.api.Configuration
 import play.api.Environment
@@ -37,9 +39,9 @@ trait SwaggerPlugin {
   def config: PlaySwaggerConfig
   def apiListingCache: ApiListingCache
   def playReader: PlayReader
-  def scanner: Scanner
+  def scanner: OpenApiScanner
   def routes: RouteWrapper
-  def swaggerSpecFilter: Option[SwaggerSpecFilter]
+  def swaggerSpecFilter: Option[OpenAPISpecFilter]
 }
 
 class SwaggerPluginImpl @Inject()(environment: Environment, configuration: Configuration) extends SwaggerPlugin {
@@ -65,10 +67,10 @@ class SwaggerPluginImpl @Inject()(environment: Environment, configuration: Confi
 
   lazy val scanner = new PlayApiScanner(config, routes, environment)
 
-  lazy val swaggerSpecFilter: Option[SwaggerSpecFilter] = config.filterClass match {
+  lazy val swaggerSpecFilter: Option[OpenAPISpecFilter] = config.filterClass match {
     case Some(e) if e.nonEmpty =>
       try {
-        val filter = environment.classLoader.loadClass(e).newInstance.asInstanceOf[SwaggerSpecFilter]
+        val filter = environment.classLoader.loadClass(e).newInstance.asInstanceOf[OpenAPISpecFilter]
         logger.debug("Setting swagger.filter to %s".format(e))
         Some(filter)
       } catch {
@@ -85,7 +87,7 @@ class SwaggerPluginImpl @Inject()(environment: Environment, configuration: Confi
 
   logger.info("Swagger: starting initialization")
   // eagerly initialize and set up global state required by Swagger
-  swaggerSpecFilter foreach FilterFactory.setFilter
+  swaggerSpecFilter.foreach(FilterFactory.setFilter)
   ScannerFactory.setScanner(scanner)
   logger.info("Swagger: initialization done")
 }

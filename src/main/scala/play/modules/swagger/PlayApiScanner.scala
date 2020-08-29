@@ -6,7 +6,9 @@ import io.swagger.models.Contact
 import io.swagger.models.Info
 import io.swagger.models.License
 import io.swagger.models.Scheme
-import io.swagger.models.Swagger
+import io.swagger.v3.oas.integration.api.{OpenAPIConfiguration, OpenApiScanner}
+import io.swagger.v3.oas.models.OpenAPI
+import io.swagger.v3.oas.models.info.{Contact, Info, License}
 import javax.inject.Inject
 import org.apache.commons.lang3.StringUtils
 import play.api.Environment
@@ -19,8 +21,8 @@ import scala.jdk.CollectionConverters._
   * Uses the Play Router to identify Controllers, and then tests each for the API annotation.
   */
 class PlayApiScanner @Inject()(config: PlaySwaggerConfig, routes: RouteWrapper, environment: Environment)
-  extends Scanner with SwaggerConfig {
-  private def updateInfoFromConfig(swagger: Swagger): Swagger = {
+  extends OpenApiScanner with OpenAPIConfiguration {
+  private def updateInfoFromConfig(swagger: OpenAPI): OpenAPI = {
 
     val info = new Info()
 
@@ -55,12 +57,12 @@ class PlayApiScanner @Inject()(config: PlaySwaggerConfig, routes: RouteWrapper, 
     swagger.info(info)
   }
 
-  override def configure(swagger: Swagger): Swagger = {
-    for (s <- config.schemes) swagger.scheme(Scheme.forValue(s))
-    updateInfoFromConfig(swagger)
-    swagger.host(config.host)
-    swagger.basePath(config.basePath)
-  }
+//  override def configure(swagger: OpenAPI): OpenAPI = {
+//    for (s <- config.schemes) swagger.scheme(Scheme.forValue(s))
+//    updateInfoFromConfig(swagger)
+//    swagger.host(config.host)
+//    swagger.basePath(config.basePath)
+//  }
 
   override def getFilterClass(): String = {
     null
@@ -95,7 +97,6 @@ class PlayApiScanner @Inject()(config: PlaySwaggerConfig, routes: RouteWrapper, 
 
   }
 
-  override def getPrettyPrint(): Boolean = true
 
-  override def setPrettyPrint(x: Boolean): Unit = ()
+
 }

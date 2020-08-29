@@ -22,6 +22,8 @@ import akka.util.ByteString
 import io.swagger.core.filter.SpecFilter
 import io.swagger.models.Swagger
 import io.swagger.util.Json
+import io.swagger.v3.core.filter.SpecFilter
+import io.swagger.v3.oas.models.OpenAPI
 import javax.inject.Inject
 import javax.xml.bind.annotation._
 import play.api.Logger
@@ -66,7 +68,7 @@ class ApiHelpController @Inject() (components: ControllerComponents, val swagger
 
   def getResources = Action { implicit request =>
     val host: String = swaggerPlugin.config.host
-    val resourceListing: Swagger = getResourceListing(host)
+    val resourceListing: OpenAPI = getResourceListing(host)
     val response: String = returnXml(request) match {
       case true => toXmlString(resourceListing)
       case false => toJsonString(resourceListing)
@@ -76,7 +78,7 @@ class ApiHelpController @Inject() (components: ControllerComponents, val swagger
 
   def getResource(path: String) = Action { implicit request =>
     val host: String = swaggerPlugin.config.host
-    val apiListing: Swagger = getApiListing(path, host)
+    val apiListing: OpenAPI = getApiListing(path, host)
     val response: String = returnXml(request) match {
       case true => toXmlString(apiListing)
       case false => toJsonString(apiListing)
@@ -106,7 +108,7 @@ trait SwaggerBaseApiController {
   /**
    * Get a list of all top level resources
    */
-  protected def getResourceListing(host: String)(implicit requestHeader: RequestHeader): Swagger = {
+  protected def getResourceListing(host: String)(implicit requestHeader: RequestHeader): OpenAPI = {
     Logger("swagger").debug("ApiHelpInventory.getRootResources")
     val queryParams = (for((key, value) <- requestHeader.queryString) yield {
       (key, value.toList.asJava)
@@ -131,7 +133,7 @@ trait SwaggerBaseApiController {
   /**
    * Get detailed API/models for a given resource
    */
-  protected def getApiListing(resourceName: String, host: String)(implicit requestHeader: RequestHeader): Swagger = {
+  protected def getApiListing(resourceName: String, host: String)(implicit requestHeader: RequestHeader): OpenAPI = {
     Logger("swagger").debug("ApiHelpInventory.getResource(%s)".format(resourceName))
     val f = new SpecFilter
     val queryParams = requestHeader.queryString.map {case (key, value) => key -> value.toList.asJava}

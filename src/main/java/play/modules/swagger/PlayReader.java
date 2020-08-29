@@ -1,18 +1,24 @@
 package play.modules.swagger;
 
 import com.fasterxml.jackson.databind.JavaType;
-import io.swagger.annotations.*;
-import io.swagger.annotations.Info;
-import io.swagger.converter.ModelConverters;
-import io.swagger.models.Contact;
-import io.swagger.models.ExternalDocs;
-import io.swagger.models.*;
-import io.swagger.models.Tag;
-import io.swagger.models.auth.In;
-import io.swagger.models.parameters.*;
-import io.swagger.models.parameters.Parameter;
-import io.swagger.models.properties.*;
-import io.swagger.util.*;
+//import io.swagger.annotations.*;
+//import io.swagger.annotations.Info;
+//import io.swagger.converter.ModelConverters;
+//import io.swagger.models.Contact;
+//import io.swagger.models.ExternalDocs;
+//import io.swagger.models.*;
+//import io.swagger.models.Tag;
+//import io.swagger.models.auth.In;
+//import io.swagger.models.parameters.*;
+//import io.swagger.models.parameters.Parameter;
+//import io.swagger.models.properties.*;
+//import io.swagger.util.*;
+import io.swagger.v3.core.util.AnnotationsUtils;
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.info.Info;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
 import org.apache.commons.lang3.StringUtils;
 import play.Logger;
 import play.modules.swagger.util.CrossUtil;
@@ -30,25 +36,25 @@ public class PlayReader {
 
     private static final String SUCCESSFUL_OPERATION = "successful operation";
 
-    private Swagger swagger;
+    private OpenAPI swagger;
     private PlaySwaggerConfig config;
     private RouteWrapper routes;
 
-    public Swagger getSwagger() {
+    public OpenAPI getSwagger() {
         return swagger;
     }
 
-    public PlayReader(PlaySwaggerConfig config, RouteWrapper routes, Swagger swagger) {
+    public PlayReader(PlaySwaggerConfig config, RouteWrapper routes, OpenAPI swagger) {
         this.routes = routes;
         this.config = config;
-        this.swagger = swagger == null ? new Swagger() : swagger;
+        this.swagger = swagger == null ? new OpenAPI() : swagger;
     }
 
-    public Swagger read(Set<Class<?>> classes) {
+    public OpenAPI read(Set<Class<?>> classes) {
 
         // process SwaggerDefinitions first - so we get tags in desired order
         for (Class<?> cls : classes) {
-            SwaggerDefinition swaggerDefinition = cls.getAnnotation(SwaggerDefinition.class);
+            OpenAPIDefinition swaggerDefinition = cls.getAnnotation(OpenAPIDefinition.class);
             if (swaggerDefinition != null) {
                 readSwaggerConfig(cls, swaggerDefinition);
             }
@@ -60,12 +66,12 @@ public class PlayReader {
         return swagger;
     }
 
-    public Swagger read(Class<?> cls) {
+    public OpenAPI read(Class<?> cls) {
         return read(cls, false);
     }
 
-    private Swagger read(Class<?> cls, boolean readHidden) {
-        Api api = cls.getAnnotation(Api.class);
+    private OpenAPI read(Class<?> cls, boolean readHidden) {
+        OpenAPIDefinition api = cls.getAnnotation(OpenAPIDefinition.class);
 
         Map<String, Tag> tags = new HashMap<>();
         List<SecurityRequirement> securities = new ArrayList<>();
@@ -245,98 +251,54 @@ public class PlayReader {
         return operationPath.toString();
     }
 
-    protected void readSwaggerConfig(Class<?> cls, SwaggerDefinition config) {
+    protected void readSwaggerConfig(Class<?> cls, OpenAPIDefinition config) {
 
-        if (!config.basePath().isEmpty()) {
-            swagger.setBasePath(config.basePath());
-        }
+//        if (!config.basePath().isEmpty()) {
+//            swagger.setBasePath(config.basePath());
+//        }
 
-        if (!config.host().isEmpty()) {
-            swagger.setHost(config.host());
+        if (config.servers().length != 0) {
+            swagger.setServers(AnnotationsUtils.getServers(config.servers()).orElseGet(Collections::emptyList));
         }
 
         readInfoConfig(config);
 
-        for (String consume : config.consumes()) {
-            if (StringUtils.isNotEmpty(consume)) {
-                swagger.addConsumes(consume);
-            }
+//        for (String consume : config.consumes()) {
+//            if (StringUtils.isNotEmpty(consume)) {
+//                swagger.addConsumes(consume);
+//            }
+//        }
+//
+//        for (String produce : config.produces()) {
+//            if (StringUtils.isNotEmpty(produce)) {
+//                swagger.addProduces(produce);
+//            }
+//        }
+
+        AnnotationsUtils.getExternalDocumentation(config.externalDocs())
+                .ifPresent(externalDocs -> swagger.setExternalDocs(externalDocs));
+
+        AnnotationsUtils.getTags(config.tags(), false)
+            .ifPresent(tags -> tags.forEach(tag -> swagger.addTagsItem(tag)));
+
+        for (io.swagger.v3.oas.annotations.security.SecurityRequirement ann : config.security()) {
+            SecurityRequirement defn = new SecurityRequirement();
+            defn.addList(ann.name(), Arrays.asList(ann.scopes()));
+            swagger.addSecurityItem(defn);
         }
 
-        for (String produce : config.produces()) {
-            if (StringUtils.isNotEmpty(produce)) {
-                swagger.addProduces(produce);
-            }
-        }
-
-        if (!config.externalDocs().value().isEmpty()) {
-            ExternalDocs externalDocs = swagger.getExternalDocs();
-            if (externalDocs == null) {
-                externalDocs = new ExternalDocs();
-                swagger.setExternalDocs(externalDocs);
-            }
-
-            externalDocs.setDescription(config.externalDocs().value());
-
-            if (!config.externalDocs().url().isEmpty()) {
-                externalDocs.setUrl(config.externalDocs().url());
-            }
-        }
-
-        for (io.swagger.annotations.Tag tagConfig : config.tags()) {
-            if (!tagConfig.name().isEmpty()) {
-                Tag tag = new Tag();
-                tag.setName(tagConfig.name());
-                tag.setDescription(tagConfig.description());
-
-                if (!tagConfig.externalDocs().value().isEmpty()) {
-                    tag.setExternalDocs(
-                            new ExternalDocs(tagConfig.externalDocs().value(), tagConfig.externalDocs().url()));
-                }
-
-                tag.getVendorExtensions().putAll(BaseReaderUtils.parseExtensions(tagConfig.extensions()));
-
-                swagger.addTag(tag);
-            }
-        }
-
-        for (ApiKeyAuthDefinition ann : config.securityDefinition().apiKeyAuthDefinitions()) {
-            io.swagger.models.auth.ApiKeyAuthDefinition defn = new io.swagger.models.auth.ApiKeyAuthDefinition();
-            defn.setName(ann.name());
-            defn.setIn(In.forValue(ann.in().toValue()));
-            defn.setDescription(ann.description());
-            swagger.addSecurityDefinition(ann.key(), defn);
-        }
-
-        for (BasicAuthDefinition ann : config.securityDefinition().basicAuthDefinitions()) {
-            io.swagger.models.auth.BasicAuthDefinition defn = new io.swagger.models.auth.BasicAuthDefinition();
-            defn.setDescription(ann.description());
-            swagger.addSecurityDefinition(ann.key(), defn);
-        }
-
-        for (OAuth2Definition ann : config.securityDefinition().oAuth2Definitions()) {
-            io.swagger.models.auth.OAuth2Definition defn = new io.swagger.models.auth.OAuth2Definition();
-            defn.setTokenUrl(ann.tokenUrl());
-            defn.setAuthorizationUrl(ann.authorizationUrl());
-            defn.setFlow(ann.flow().name().toLowerCase());
-            for (Scope scope : ann.scopes()) {
-                defn.addScope(scope.name(), scope.description());
-            }
-            swagger.addSecurityDefinition(ann.key(), defn);
-        }
-
-        for (SwaggerDefinition.Scheme scheme : config.schemes()) {
-            if (scheme != SwaggerDefinition.Scheme.DEFAULT) {
-                swagger.addScheme(Scheme.forValue(scheme.name()));
-            }
-        }
+//        for (SwaggerDefinition.Scheme scheme : config.schemes()) {
+//            if (scheme != SwaggerDefinition.Scheme.DEFAULT) {
+//                swagger.addScheme(Scheme.forValue(scheme.name()));
+//            }
+//        }
     }
 
-    protected void readInfoConfig(SwaggerDefinition config) {
+    protected void readInfoConfig(OpenAPIDefinition config) {
         Info infoConfig = config.info();
-        io.swagger.models.Info info = swagger.getInfo();
+        io.swagger.v3.oas.models.info.Info info = swagger.getInfo();
         if (info == null) {
-            info = new io.swagger.models.Info();
+            info = new io.swagger.v3.oas.models.info.Info();
             swagger.setInfo(info);
         }
 
@@ -374,9 +336,9 @@ public class PlayReader {
         }
 
         if (!infoConfig.license().name().isEmpty()) {
-            io.swagger.models.License license = info.getLicense();
+            io.swagger.v3.oas.models.info.License license = info.getLicense();
             if (license == null) {
-                license = new io.swagger.models.License();
+                license = new io.swagger.v3.oas.models.info.License();
                 info.setLicense(license);
             }
 
@@ -386,7 +348,7 @@ public class PlayReader {
             }
         }
 
-        info.getVendorExtensions().putAll(BaseReaderUtils.parseExtensions(infoConfig.extensions()));
+        info.getExtensions().putAll(AnnotationsUtils.getExtensions(infoConfig.extensions()));
     }
 
     private void readImplicitParameters(Method method, Operation operation, Class<?> cls) {
